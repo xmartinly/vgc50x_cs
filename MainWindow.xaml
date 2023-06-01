@@ -5,6 +5,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:oxyCore="http://oxyplot.org"
+    xmlns:oxyWpf="http://oxyplot.org/wpf"
     xmlns:utils="clr-namespace:VGC50x.Utils"
     Title="VGC50x"
     Width="1366"
@@ -12,6 +14,12 @@
     Background="{DynamicResource MaterialDesignPaper}"
     FontFamily="{DynamicResource MaterialDesignFont}"
     mc:Ignorable="d">
+
+    <Window.DataContext>
+        <utils:GaugeValueModel />
+    </Window.DataContext>
+
+
     <Grid Margin="5,5,5,5" ShowGridLines="True">
         <!--  定义列，2列  -->
         <Grid.ColumnDefinitions>
@@ -86,7 +94,7 @@
                     </ComboBox>
                     <TextBox
                         x:Name="tb_path"
-                        Grid.Row="3"
+                        Grid.Row="4"
                         Width="150"
                         MinWidth="150"
                         Margin="0,0,0,20"
@@ -96,12 +104,12 @@
                         Style="{StaticResource MaterialDesignFloatingHintTextBox}" />
                     <ComboBox
                         x:Name="cb_uni"
-                        Grid.Row="4"
+                        Grid.Row="3"
                         Width="100"
                         MinWidth="100"
                         Margin="0,0,0,20"
                         HorizontalAlignment="Left"
-                        materialDesign:HintAssist.Hint="采样间隔(ms)"
+                        materialDesign:HintAssist.Hint="气压单位"
                         SelectionChanged="Cb_uni_SelectionChanged">
                         <ComboBoxItem Content="mbar/bar" />
                         <ComboBoxItem Content="Torr" />
@@ -143,11 +151,16 @@
                 <ColumnDefinition />
                 <ColumnDefinition />
             </Grid.ColumnDefinitions>
-            <Canvas
+
+
+
+
+            <oxyWpf:PlotView
                 Grid.Row="0"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
-                Background="Azure" />
+                Model="{Binding Points}" />
+
             <materialDesign:Card
                 Grid.Row="1"
                 Grid.Column="0"

@@ -4,6 +4,9 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
 using VGC50x.Utils;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
 
 namespace VGC50x
 {
