@@ -29,7 +29,7 @@ namespace VGC50x
         /// </summary>
         public void FindComPorts()
         {
-            string[] ports = m_ser_conn.GetPortNames();
+            string[] ports = SerialPortUtils.GetPortNames();
             if (ports != null)
             {
                 foreach (string port in ports)
@@ -72,7 +72,7 @@ namespace VGC50x
         /// <param name="e"></param>
         private void Btn_conn_Click(object sender, RoutedEventArgs e)
         {
-            if (m_ser_conn.getPortState())
+            if (m_ser_conn.GetPortState())
             {
                 m_ser_conn.OpenClosePort();
             }
