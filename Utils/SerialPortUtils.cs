@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 
@@ -73,51 +74,31 @@ namespace VGC50x.Utils
         public void ReceiveData(object sender, SerialDataReceivedEventArgs e)
         {
             SerialPort _SerialPort = (SerialPort)sender;
-            try
+            bool read_finished = false;
+            bool crlr_chk = false;
+            while (!read_finished)
             {
-                byte[]? readBuffer = null;
-                int n = _SerialPort.BytesToRead;
-                byte[] buf = new byte[n];
-                _SerialPort.Read(buf, 0, n);
-                //1.缓存数据
-                buffer.AddRange(buf);
-                //2.完整性判断
-                while (buffer.Count >= 2)
+                int read_count = _SerialPort.BytesToRead;
+                byte[] temp_bytes = new byte[read_count];
+                _SerialPort.Read(temp_bytes, 0, read_count);
+                buffer.AddRange(temp_bytes);
+                int buff_count = buffer.Count;
+                if (buff_count >= 2)
                 {
-                    if (buffer.Count == 3 && buffer[0] == 0x06)   //ACK 数据比较
-                    {
-                        if (Enumerable.SequenceEqual(buffer, ack_trans))
-                        {
-                            SendData(enq);
-                            return;
-                        }
-                        break;
-                    }
-                    //2.1 查找数据标记头
-                    if (buffer[0] == 0x06) //ACK反馈
-                    {
-                        int len = buffer[1];
-                        if (buffer.Count < len + 2)
-                        {
-                            //数据未接收完整跳出循环
-                            break;
-                        }
-                        readBuffer = new byte[len + 2];
-                        //得到完整的数据，复制到readBuffer中
-                        buffer.CopyTo(0, readBuffer, 0, len + 2);
-                        //从缓冲区中清除
-                        buffer.RemoveRange(0, len + 2);
-
-                        //触发外部处理接收消息事件
-                    }
-                    else //开始标记或版本号不正确时清除
-                    {
-                        buffer.RemoveAt(0);
-                    }
+                    List<byte> last_two = buffer.GetRange(buff_count - 2, 2);
+                    crlr_chk = Enumerable.SequenceEqual(last_two, msg_end);
                 }
-            }
-            catch (Exception ex)
-            {
+                if (crlr_chk)
+                {
+                    if (buffer[0] == 0x06)
+                    {
+                        SendData(enq);
+                    }
+                    string str = System.Text.Encoding.Default.GetString(buffer.ToArray());
+                    Trace.WriteLine("收到数据：" + str);
+                    buffer.Clear();
+                    read_finished = true;
+                }
             }
 
             //int _bytesToRead = _SerialPort.BytesToRead;

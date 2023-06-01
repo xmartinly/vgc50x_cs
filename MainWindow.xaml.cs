@@ -12,16 +12,24 @@ namespace VGC50x
     /// </summary>
     public partial class MainWindow : Window
     {
+        /// <summary>
+        /// SerialPortUtils instance
+        /// </summary>
+        private readonly SerialPortUtils m_ser_conn = new();
         public MainWindow()
         {
             InitializeComponent();
+
             FindComPorts();
             btn_ctrl.IsEnabled = false;
         }
 
+        /// <summary>
+        /// find avilable serial port 
+        /// </summary>
         public void FindComPorts()
         {
-            string[] ports = Utils.SerialPortUtils.GetPortNames();
+            string[] ports = m_ser_conn.GetPortNames();
             if (ports != null)
             {
                 foreach (string port in ports)
@@ -32,18 +40,16 @@ namespace VGC50x
             }
         }
 
+        /// <summary>
+        /// start/stop acquire
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void Btn_ctrl_Click(object sender, RoutedEventArgs e)
         {
-            //int open_port = Utils.SerialPortUtils.getPortState();
-            //if (open_port == 0)
-            //{
-            //    string s_port = cb_port.Text;
-            //    int i_bdrate = (int)cb_bdrt.SelectedValue;
-            //    Utils.SerialPortUtils.OpenClosePort(s_port, i_bdrate);
-            //}
             string tid = "UNI,3\r";
             byte[] ba_tid = System.Text.Encoding.UTF8.GetBytes(tid);
-            Utils.SerialPortUtils.SendData(ba_tid);
+            m_ser_conn.SendData(ba_tid);
         }
 
         private void Tb_path_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -59,11 +65,16 @@ namespace VGC50x
             tb_path.Text = m_Dir;
         }
 
+        /// <summary>
+        /// open serial port
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void Btn_conn_Click(object sender, RoutedEventArgs e)
         {
-            if (Utils.SerialPortUtils.getPortState())
+            if (m_ser_conn.getPortState())
             {
-                Utils.SerialPortUtils.OpenClosePort();
+                m_ser_conn.OpenClosePort();
             }
             string s_port = cb_port.Text;
             string s_bdrate = cb_bdrt.Text;
@@ -71,21 +82,25 @@ namespace VGC50x
             if (s_bdrate.Length > 0) { i_bdrate = int.Parse(s_bdrate); }
 
             Trace.WriteLine(cb_bdrt.Text);
-            bool port_opened = Utils.SerialPortUtils.OpenClosePort(s_port, i_bdrate);
+            bool port_opened = m_ser_conn.OpenClosePort(s_port, i_bdrate);
             btn_ctrl.IsEnabled = port_opened;
             if (port_opened)
             {
                 //string tid = "UNI,3\r";
                 string tid = "AYT\r";
                 byte[] ba_tid = System.Text.Encoding.UTF8.GetBytes(tid);
-                Utils.SerialPortUtils.SendData(ba_tid);
+                m_ser_conn.SendData(ba_tid);
             }
         }
 
+        /// <summary>
+        /// change report unit
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void Cb_uni_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             var cc = cb_uni.SelectedIndex;
-            //var aaa = cb_uni.Items.IndexOf(cc);
             Trace.WriteLine(cc);
         }
     }
