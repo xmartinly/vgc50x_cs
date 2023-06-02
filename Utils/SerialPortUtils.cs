@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Timers;
@@ -14,12 +13,11 @@ namespace VGC50x.Utils
         private List<byte> _read_buffer = new(4096);
         private readonly byte[] _enq = { 0x05 };
         private readonly List<byte> _msg_end = new() { 0x0d, 0x0a };
-
         private static Timer? _cmd_timer;
-
-        private int _read_count = 0;
-
         private Queue<string> _cmd_queue = new();
+        private bool _read_process = false;
+
+        public SendDataDelegate? SendData = null;
 
         public void SetTimer(int intvl = 20)
         {
@@ -54,15 +52,6 @@ namespace VGC50x.Utils
         {
             _cmd_queue.Enqueue(cmd);
         }
-
-        private bool _read_process = false;
-
-        public bool GetReadProcess()
-        {
-            return _read_process;
-        }
-
-        public SendDataDelegate? SendData = null;
 
         /// <summary>
         /// check byte[] equal

@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq.Expressions;
-using System.Text;
+using System.Timers;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
 using VGC50x.Plot;
 using VGC50x.Utils;
-using System.Timers;
-using System.Security.Cryptography;
 
 namespace VGC50x
 {
@@ -42,6 +38,7 @@ namespace VGC50x
         private readonly string _tid = "TID\r";
         private readonly string _prx = "PRX\r";
         private readonly string _res = "RES\r";
+        private readonly string _uni = "UNI,{0}\r";
 
         private void SetReadTimer(int read_intvl = 200)
         {
@@ -126,7 +123,10 @@ namespace VGC50x
                 SetReadTimer(0);
                 return;
             }
-            SetReadTimer(200);
+            string s_intvl = cb_intvl.Text;
+            int i_intvl = s_intvl.Length > 0 ? int.Parse(s_intvl) : 1000;
+            SetReadTimer(i_intvl);
+            //btn_conn.Text = "test";
         }
 
         private void Tb_path_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -188,9 +188,7 @@ namespace VGC50x
         {
             int i_uni = cb_uni.SelectedIndex;
             if (i_uni < 0 || !_ser_conn.GetPortState()) { return; }
-            string str_uni = String.Format("UNI,{0}\r", i_uni);
-            byte[] ba_uni = System.Text.Encoding.UTF8.GetBytes(str_uni);
-            _ser_conn.WriteCommand(ba_uni);
+            _ser_conn.AddCmd(String.Format(_uni, i_uni));
         }
 
         private void ReciveMsg(string msg, int field)
