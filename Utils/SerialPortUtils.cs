@@ -1,21 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
-using System.Runtime.CompilerServices;
 
 namespace VGC50x.Utils
 
 {
     public class SerialPortUtils
     {
-        private static SerialPort? serial_port = null;
-        private List<byte> buffer = new(4096);
-        private readonly byte[] enq = { 0x05 };
-        private readonly List<byte> msg_end = new() { 0x0d, 0x0a };
+        private static SerialPort? _serial_port = null;
+        private List<byte> _read_buffer = new(4096);
+        private readonly byte[] _enq = { 0x05 };
+        private readonly List<byte> _msg_end = new() { 0x0d, 0x0a };
+
+        private bool _read_process = false;
+
+        private int _read_count = 0;
 
         private Queue<byte[]> _cmd_queue = new();
+
+        public void StartTimer(int intvl = 100)
+        {
+            //定义一个对象
+            System.Threading.Timer timer = new(
+              new System.Threading.TimerCallback(WriteSingleCmd), null,
+              0, intvl);//1S定时器
+        }
 
         public void ClearCmdQueue()
         {
@@ -27,11 +37,12 @@ namespace VGC50x.Utils
             _cmd_queue.Enqueue(cmd);
         }
 
-        private byte[] GetSingleCmd()
+        public void WriteSingleCmd(object? a)
         {
-            byte[] empty = { 0x00 };
-            if (_cmd_queue.Count == 0) { return empty; }
-            return _cmd_queue.Dequeue();
+            _read_count++;
+            Trace.WriteLine($"ReadCount: {_read_count}");
+            if (_cmd_queue.Count == 0 || _read_process) { return; }
+            WriteCommand(_cmd_queue.Dequeue());
         }
 
         public SendDataDelegate? SendData = null;
@@ -57,7 +68,7 @@ namespace VGC50x.Utils
         /// get port names
         /// </summary>
         /// <returns></returns>
-        public static string[] GetPortNames()
+        public string[] GetPortNames()
         {
             return SerialPort.GetPortNames();
         }
@@ -68,8 +79,8 @@ namespace VGC50x.Utils
         /// <returns></returns>
         public bool GetPortState()
         {
-            if (serial_port == null) { return false; }
-            return serial_port.IsOpen;
+            if (_serial_port == null) { return false; }
+            return _serial_port.IsOpen;
         }
 
         /// <summary>
@@ -81,9 +92,9 @@ namespace VGC50x.Utils
         public bool OpenClosePort(string comName = "COM1", int baud = 115200)
         {
             //串口未打开
-            if (serial_port == null || !serial_port.IsOpen)
+            if (_serial_port == null || !_serial_port.IsOpen)
             {
-                serial_port = new SerialPort
+                _serial_port = new SerialPort
                 {
                     //串口名称
                     PortName = comName,
@@ -97,16 +108,16 @@ namespace VGC50x.Utils
                     Parity = Parity.None
                 };
                 //打开串口
-                serial_port.Open();
+                _serial_port.Open();
                 //串口数据接收事件实现
-                serial_port.DataReceived += new SerialDataReceivedEventHandler(ReceiveData);
+                _serial_port.DataReceived += new SerialDataReceivedEventHandler(ReceiveData);
             }
             //串口已经打开
             else
             {
-                serial_port.Close();
+                _serial_port.Close();
             }
-            return serial_port.IsOpen;
+            return _serial_port.IsOpen;
         }
 
         /// <summary>
@@ -116,6 +127,7 @@ namespace VGC50x.Utils
         /// <param name="e"></param>
         public void ReceiveData(object sender, SerialDataReceivedEventArgs e)
         {
+            _read_process = true;
             SerialPort _SerialPort = (SerialPort)sender;
             int read_attempts = 0;
             bool read_finished = false;
@@ -125,30 +137,31 @@ namespace VGC50x.Utils
                 int read_count = _SerialPort.BytesToRead;
                 byte[] temp_bytes = new byte[read_count];
                 _SerialPort.Read(temp_bytes, 0, read_count);
-                buffer.AddRange(temp_bytes);
-                int buff_count = buffer.Count;
+                _read_buffer.AddRange(temp_bytes);
+                int buff_count = _read_buffer.Count;
                 if (buff_count >= 2)
                 {
-                    List<byte> last_two = buffer.GetRange(buff_count - 2, 2);
-                    crlr_chk = Enumerable.SequenceEqual(last_two, msg_end);
+                    List<byte> last_two = _read_buffer.GetRange(buff_count - 2, 2);
+                    crlr_chk = Enumerable.SequenceEqual(last_two, _msg_end);
                 }
                 if (crlr_chk)
                 {
-                    if (buffer[0] == 0x06)
+                    if (_read_buffer[0] == 0x06)
                     {
-                        WriteCommand(enq);
-                        buffer.Clear();
+                        WriteCommand(_enq);
+                        _read_buffer.Clear();
                         return;
                     }
                     if (SendData is not null)
                     {
-                        SendData(System.Text.Encoding.Default.GetString(buffer.ToArray()), 1);
+                        SendData(System.Text.Encoding.Default.GetString(_read_buffer.ToArray()), 1);
                     }
-                    buffer.Clear();
+                    _read_buffer.Clear();
                     read_finished = true;
                 }
                 ++read_attempts;
             }
+            _read_process = false;
         }
 
         /// <summary>
@@ -156,11 +169,11 @@ namespace VGC50x.Utils
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public static void WriteCommand(byte[] data)
+        public void WriteCommand(byte[] data)
         {
-            if (serial_port != null && serial_port.IsOpen)
+            if (_serial_port != null && _serial_port.IsOpen)
             {
-                serial_port.Write(data, 0, data.Length);
+                _serial_port.Write(data, 0, data.Length);
             }
         }
     }

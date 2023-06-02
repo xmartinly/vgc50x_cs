@@ -19,7 +19,7 @@ namespace VGC50x
         /// <summary>
         /// SerialPortUtils instance
         /// </summary>
-        private readonly SerialPortUtils m_ser_conn = new();
+        private readonly SerialPortUtils _ser_conn = new();
 
         public MainWindow()
         {
@@ -27,7 +27,7 @@ namespace VGC50x
             ReadingsModel.TestReadings(this.readings_plot);
             FindComPorts();
             btn_ctrl.IsEnabled = false;
-            m_ser_conn.SendData = ReciveMsg;
+            _ser_conn.SendData = ReciveMsg;
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace VGC50x
         /// </summary>
         public void FindComPorts()
         {
-            string[] ports = SerialPortUtils.GetPortNames();
+            string[] ports = _ser_conn.GetPortNames();
             if (ports != null)
             {
                 foreach (string port in ports)
@@ -75,23 +75,22 @@ namespace VGC50x
         /// <param name="e"></param>
         private void Btn_conn_Click(object sender, RoutedEventArgs e)
         {
-            if (m_ser_conn.GetPortState())
+            if (_ser_conn.GetPortState())
             {
-                m_ser_conn.OpenClosePort();
+                _ser_conn.OpenClosePort();
             }
             string s_port = cb_port.Text;
             string s_bdrate = cb_bdrt.Text;
             int i_bdrate = 115200;
             if (s_bdrate.Length > 0) { i_bdrate = int.Parse(s_bdrate); }
-
-            Trace.WriteLine(cb_bdrt.Text);
-            bool port_opened = m_ser_conn.OpenClosePort(s_port, i_bdrate);
+            bool port_opened = _ser_conn.OpenClosePort(s_port, i_bdrate);
             btn_ctrl.IsEnabled = port_opened;
             if (port_opened)
             {
+                _ser_conn.StartTimer(500);
                 string tid = "AYT\r";
                 byte[] ba_tid = System.Text.Encoding.UTF8.GetBytes(tid);
-                SerialPortUtils.WriteCommand(ba_tid);
+                _ser_conn.WriteCommand(ba_tid);
             }
         }
 
@@ -103,10 +102,10 @@ namespace VGC50x
         private void Cb_uni_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             int i_uni = cb_uni.SelectedIndex;
-            if (i_uni < 0 || !m_ser_conn.GetPortState()) { return; }
+            if (i_uni < 0 || !_ser_conn.GetPortState()) { return; }
             string str_uni = String.Format("UNI,{0}\r", i_uni);
             byte[] ba_uni = System.Text.Encoding.UTF8.GetBytes(str_uni);
-            SerialPortUtils.WriteCommand(ba_uni);
+            _ser_conn.WriteCommand(ba_uni);
         }
 
         private void ReciveMsg(string msg, int field)
