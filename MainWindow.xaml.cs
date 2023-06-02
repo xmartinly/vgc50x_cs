@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Text;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
+using VGC50x.Plot;
 using VGC50x.Utils;
-using OxyPlot;
-using OxyPlot.Axes;
-using OxyPlot.Series;
 
 namespace VGC50x
 {
+    public delegate void SendDataDelegate(string s_data, int data_field);
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -19,16 +20,18 @@ namespace VGC50x
         /// SerialPortUtils instance
         /// </summary>
         private readonly SerialPortUtils m_ser_conn = new();
+
         public MainWindow()
         {
             InitializeComponent();
-
+            ReadingsModel.TestReadings(this.readings_plot);
             FindComPorts();
             btn_ctrl.IsEnabled = false;
+            m_ser_conn.SendData = ReciveMsg;
         }
 
         /// <summary>
-        /// find avilable serial port 
+        /// find avilable serial port
         /// </summary>
         public void FindComPorts()
         {
@@ -50,9 +53,6 @@ namespace VGC50x
         /// <param name="e"></param>
         private void Btn_ctrl_Click(object sender, RoutedEventArgs e)
         {
-            string tid = "UNI,3\r";
-            byte[] ba_tid = System.Text.Encoding.UTF8.GetBytes(tid);
-            m_ser_conn.SendData(ba_tid);
         }
 
         private void Tb_path_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -89,10 +89,9 @@ namespace VGC50x
             btn_ctrl.IsEnabled = port_opened;
             if (port_opened)
             {
-                //string tid = "UNI,3\r";
                 string tid = "AYT\r";
                 byte[] ba_tid = System.Text.Encoding.UTF8.GetBytes(tid);
-                m_ser_conn.SendData(ba_tid);
+                SerialPortUtils.WriteCommand(ba_tid);
             }
         }
 
@@ -103,8 +102,16 @@ namespace VGC50x
         /// <param name="e"></param>
         private void Cb_uni_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            var cc = cb_uni.SelectedIndex;
-            Trace.WriteLine(cc);
+            int i_uni = cb_uni.SelectedIndex;
+            if (i_uni < 0 || !m_ser_conn.GetPortState()) { return; }
+            string str_uni = String.Format("UNI,{0}\r", i_uni);
+            byte[] ba_uni = System.Text.Encoding.UTF8.GetBytes(str_uni);
+            SerialPortUtils.WriteCommand(ba_uni);
+        }
+
+        private void ReciveMsg(string msg, int field)
+        {
+            Trace.WriteLine("MainWindow：" + msg);
         }
     }
 }

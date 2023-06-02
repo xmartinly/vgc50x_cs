@@ -3,16 +3,21 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace VGC50x.Utils
 
 {
     public class SerialPortUtils
     {
-        private SerialPort? serial_port = null;
+        private static SerialPort? serial_port = null;
         private List<byte> buffer = new(4096);
         private readonly byte[] enq = { 0x05 };
         private readonly List<byte> msg_end = new() { 0x0d, 0x0a };
+
+        public Queue<byte[]> cmd_que = new();
+
+        public SendDataDelegate? SendData = null;
 
         /// <summary>
         /// check byte[] equal
@@ -20,7 +25,7 @@ namespace VGC50x.Utils
         /// <param name="b1"></param>
         /// <param name="b2"></param>
         /// <returns></returns>
-        private static bool ByteEquals(byte[] b1, byte[] b2)
+        private bool ByteEquals(byte[] b1, byte[] b2)
         {
             if (b1.Length != b2.Length) { return false; }
             if (b1 == null || b2 == null) { return false; }
@@ -39,6 +44,7 @@ namespace VGC50x.Utils
         {
             return SerialPort.GetPortNames();
         }
+
         /// <summary>
         /// get serial port open state
         /// </summary>
@@ -113,10 +119,11 @@ namespace VGC50x.Utils
                 {
                     if (buffer[0] == 0x06)
                     {
-                        SendData(enq);
+                        WriteCommand(enq);
+                        buffer.Clear();
+                        return;
                     }
-                    string str = System.Text.Encoding.Default.GetString(buffer.ToArray());
-                    Trace.WriteLine("收到数据：" + str);
+                    SendData(System.Text.Encoding.Default.GetString(buffer.ToArray()), 1);
                     buffer.Clear();
                     read_finished = true;
                 }
@@ -129,7 +136,7 @@ namespace VGC50x.Utils
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public void SendData(byte[] data)
+        public static void WriteCommand(byte[] data)
         {
             if (serial_port != null && serial_port.IsOpen)
             {
