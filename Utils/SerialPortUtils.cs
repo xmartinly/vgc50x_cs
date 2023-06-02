@@ -15,9 +15,26 @@ namespace VGC50x.Utils
         private readonly byte[] enq = { 0x05 };
         private readonly List<byte> msg_end = new() { 0x0d, 0x0a };
 
-        public Queue<byte[]> cmd_que = new();
+        private Queue<byte[]> _cmd_queue = new();
 
-        public SendDataDelegate? SendData = null;
+        public void ClearCmdQueue()
+        {
+            _cmd_queue.Clear();
+        }
+
+        public void AddCmd(byte[] cmd)
+        {
+            _cmd_queue.Enqueue(cmd);
+        }
+
+        private byte[] GetSingleCmd()
+        {
+            byte[] empty = { 0x00 };
+            if (_cmd_queue.Count == 0) { return empty; }
+            return _cmd_queue.Dequeue();
+        }
+
+        public SendDataDelegate SendData;
 
         /// <summary>
         /// check byte[] equal
