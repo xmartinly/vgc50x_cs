@@ -34,7 +34,7 @@ namespace VGC50x.Utils
             return _cmd_queue.Dequeue();
         }
 
-        public SendDataDelegate SendData;
+        public SendDataDelegate? SendData = null;
 
         /// <summary>
         /// check byte[] equal
@@ -140,7 +140,10 @@ namespace VGC50x.Utils
                         buffer.Clear();
                         return;
                     }
-                    SendData(System.Text.Encoding.Default.GetString(buffer.ToArray()), 1);
+                    if (SendData is not null)
+                    {
+                        SendData(System.Text.Encoding.Default.GetString(buffer.ToArray()), 1);
+                    }
                     buffer.Clear();
                     read_finished = true;
                 }
