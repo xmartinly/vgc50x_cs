@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
+using System.Timers;
 
 namespace VGC50x.Utils
 
@@ -13,18 +15,34 @@ namespace VGC50x.Utils
         private readonly byte[] _enq = { 0x05 };
         private readonly List<byte> _msg_end = new() { 0x0d, 0x0a };
 
-        private bool _read_process = false;
+        private static Timer? _cmd_timer;
 
         private int _read_count = 0;
 
-        private Queue<byte[]> _cmd_queue = new();
+        private Queue<string> _cmd_queue = new();
 
-        public void StartTimer(int intvl = 100)
+        public void SetTimer(int intvl = 20)
         {
-            //定义一个对象
-            System.Threading.Timer timer = new(
-              new System.Threading.TimerCallback(WriteSingleCmd), null,
-              0, intvl);//1S定时器
+            // Create a timer with a two second interval.
+            if (intvl < 20 && _cmd_timer != null)
+            {
+                _cmd_timer.Stop();
+                return;
+            }
+            if (_cmd_timer == null)
+            {
+                _cmd_timer = new Timer(intvl);
+            }
+            // Hook up the Elapsed event for the timer.
+            _cmd_timer.Elapsed += OnTimedEvent;
+            _cmd_timer.AutoReset = true;
+            _cmd_timer.Enabled = true;
+        }
+
+        private void OnTimedEvent(Object source, ElapsedEventArgs e)
+        {
+            if (_cmd_queue.Count == 0 || _read_process) { return; }
+            WriteCommand(_cmd_queue.Dequeue());
         }
 
         public void ClearCmdQueue()
@@ -32,17 +50,16 @@ namespace VGC50x.Utils
             _cmd_queue.Clear();
         }
 
-        public void AddCmd(byte[] cmd)
+        public void AddCmd(string cmd)
         {
             _cmd_queue.Enqueue(cmd);
         }
 
-        public void WriteSingleCmd(object? a)
+        private bool _read_process = false;
+
+        public bool GetReadProcess()
         {
-            _read_count++;
-            Trace.WriteLine($"ReadCount: {_read_count}");
-            if (_cmd_queue.Count == 0 || _read_process) { return; }
-            WriteCommand(_cmd_queue.Dequeue());
+            return _read_process;
         }
 
         public SendDataDelegate? SendData = null;
@@ -111,11 +128,13 @@ namespace VGC50x.Utils
                 _serial_port.Open();
                 //串口数据接收事件实现
                 _serial_port.DataReceived += new SerialDataReceivedEventHandler(ReceiveData);
+                SetTimer();
             }
             //串口已经打开
             else
             {
                 _serial_port.Close();
+                SetTimer(-1);
             }
             return _serial_port.IsOpen;
         }
@@ -169,11 +188,20 @@ namespace VGC50x.Utils
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public void WriteCommand(byte[] data)
+        public void WriteCommand(byte[] cmd)
         {
             if (_serial_port != null && _serial_port.IsOpen)
             {
-                _serial_port.Write(data, 0, data.Length);
+                _serial_port.Write(cmd, 0, cmd.Length);
+            }
+        }
+
+        public void WriteCommand(string cmd)
+        {
+            byte[] ba_cmd = System.Text.Encoding.UTF8.GetBytes(cmd);
+            if (_serial_port != null && _serial_port.IsOpen)
+            {
+                _serial_port.Write(ba_cmd, 0, ba_cmd.Length);
             }
         }
     }

@@ -1,11 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using System.Text;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
 using VGC50x.Plot;
 using VGC50x.Utils;
+using System.Timers;
+using System.Security.Cryptography;
 
 namespace VGC50x
 {
@@ -30,6 +34,70 @@ namespace VGC50x
             _ser_conn.SendData = ReciveMsg;
         }
 
+        #region
+        private static System.Timers.Timer? _read_timer;
+        private static System.Timers.Timer? _state_timer;
+
+        private readonly string _ayt = "AYT\r";
+        private readonly string _tid = "TID\r";
+        private readonly string _prx = "PRX\r";
+        private readonly string _res = "RES\r";
+
+        private void SetReadTimer(int read_intvl = 200)
+        {
+            if (read_intvl < 200 && _read_timer != null)
+            {
+                _read_timer.Stop();
+                return;
+            }
+            if (_read_timer == null)
+            {
+                _read_timer = new System.Timers.Timer(read_intvl);
+            }
+            // Hook up the Elapsed event for the timer.
+            _read_timer.Elapsed += OnReadTimer;
+            _read_timer.AutoReset = true;
+            _read_timer.Enabled = true;
+        }
+
+        private void OnReadTimer(Object source, ElapsedEventArgs e)
+        {
+            if (_ser_conn == null || !_ser_conn.GetPortState())
+            {
+                return;
+            }
+
+            _ser_conn.AddCmd(_prx);
+        }
+
+        private void SetStateTimer(int state_intvl = 1000)
+        {
+            if (state_intvl < 1000 && _state_timer != null)
+            {
+                _state_timer.Stop();
+                return;
+            }
+            if (_state_timer == null)
+            {
+                _state_timer = new System.Timers.Timer(state_intvl);
+            }
+            // Hook up the Elapsed event for the timer.
+            _state_timer.Elapsed += OnStateTimer;
+            _state_timer.AutoReset = true;
+            _state_timer.Enabled = true;
+        }
+
+        private void OnStateTimer(Object source, ElapsedEventArgs e)
+        {
+            if (_ser_conn == null || !_ser_conn.GetPortState())
+            {
+                return;
+            }
+            _ser_conn.AddCmd(_tid);
+        }
+
+        #endregion
+
         /// <summary>
         /// find avilable serial port
         /// </summary>
@@ -53,6 +121,12 @@ namespace VGC50x
         /// <param name="e"></param>
         private void Btn_ctrl_Click(object sender, RoutedEventArgs e)
         {
+            if (_read_timer != null && _read_timer.Enabled)
+            {
+                SetReadTimer(0);
+                return;
+            }
+            SetReadTimer(200);
         }
 
         private void Tb_path_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -78,6 +152,15 @@ namespace VGC50x
             if (_ser_conn.GetPortState())
             {
                 _ser_conn.OpenClosePort();
+                if (_read_timer != null)
+                {
+                    _read_timer.Stop();
+                }
+                if (_state_timer != null)
+                {
+                    _state_timer.Stop();
+                }
+                return;
             }
             string s_port = cb_port.Text;
             string s_bdrate = cb_bdrt.Text;
@@ -87,10 +170,12 @@ namespace VGC50x
             btn_ctrl.IsEnabled = port_opened;
             if (port_opened)
             {
-                _ser_conn.StartTimer(500);
-                string tid = "AYT\r";
-                byte[] ba_tid = System.Text.Encoding.UTF8.GetBytes(tid);
-                _ser_conn.WriteCommand(ba_tid);
+                _ser_conn.WriteCommand(_ayt);
+
+                if (_state_timer != null)
+                {
+                    SetStateTimer(1000);
+                }
             }
         }
 
